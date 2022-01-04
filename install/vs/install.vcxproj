@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Template|Win32">
+      <Configuration>Template</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <SccProjectName />
+    <SccLocalPath />
+    <ProjectGuid>{0228336A-2F4C-0D17-2E11-86654A1FAD8D}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"  />
+  </ImportGroup>
+  
+  <PropertyGroup Label="UserMacros" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(ProjectDir)cfg\dejainsight.props" />
+    <Import Project="$(ProjectDir)cfg\installer.props" />
+  </ImportGroup>
+ 
+  <ItemGroup>
+    <ClCompile Include="install.cpp" />
+    <ClCompile Include="log.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="install.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="log.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

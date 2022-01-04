@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+
+  <!-- General Environment values -->
+  <PropertyGroup Label="ServiceMacros">
+     <ProjectRoot>$(ProjectDir)</ProjectRoot>
+     <TempRoot>$(ProjectDir)</TempRoot>
+     <SolutionRootDirectory>$(ProjectDir)..\..\</SolutionRootDirectory>
+  </PropertyGroup> 
+   
+  <PropertyGroup Label="ModuleMacros">
+    <ProjectOutputDirectory>$(SolutionRootDirectory)bin\$(Platform)\$(Configuration)</ProjectOutputDirectory>
+    <ProjectObjectDirectory>$(TempRoot)___temp_compilation_files\obj\$(TargetName)\$(Platform)\$(Configuration)</ProjectObjectDirectory>
+
+  </PropertyGroup>
+  <PropertyGroup Label="GeneralConfig">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+    <OutDir>$(ProjectOutputDirectory)\</OutDir>
+    <IntDir>$(ProjectObjectDirectory)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+
+<!--
+  ####################################################################################################
+  # Common
+  ####################################################################################################
+-->
+  <ItemDefinitionGroup>
+    <ClCompile>
+
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <Optimization>MaxSpeed</Optimization>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AssemblerListingLocation>$(IntDir)assembler</AssemblerListingLocation>
+      <BrowseInformation>true</BrowseInformation>
+     <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ObjectFileName>$(IntDir)ObjectFileName.obj</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)ProgramDataBase.pdb</ProgramDataBaseFileName>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+<!--
+  ####################################################################################################
+  # Template
+  #
+  # Template Configuration
+  ####################################################################################################
+-->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Template'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+<!--
+  ####################################################################################################
+  # Release
+  #
+  # Release Configuration
+  ####################################################################################################
+-->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Target Name="PrintAgentPathsthsIntegration" BeforeTargets="InitializeBuildStatus">
+    <Message Text="================================================================================================" />
+    <Message Text="    *** installer props ***   " />
+    <Message Text="ProjectOutputDirectory: $(ProjectOutputDirectory)." />
+    <Message Text="ProjectObjectDirectory: $(ProjectObjectDirectory)." />
+    <Message Text="================================================================================================" />
+  </Target>
+</Project>
+
