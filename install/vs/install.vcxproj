@@ -12,23 +12,35 @@
   </ItemGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
     <Link>
-      <OutputFile>install_test.exe</OutputFile>
+      <OutputFile>
+      </OutputFile>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(ProjectDir)\installer.ini $(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
-      <OutputFile>install.exe</OutputFile>
+      <OutputFile>
+      </OutputFile>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(ProjectDir)\installer.ini $(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\acl.h" />
     <ClInclude Include="..\src\decode.h" />
+    <ClInclude Include="..\src\IniFile.h" />
     <ClInclude Include="..\src\log.h" />
+    <ClInclude Include="..\src\macros.h" />
+    <ClInclude Include="..\src\nowarns.h" />
     <ClInclude Include="..\src\RegEditEx.h" />
     <ClInclude Include="..\src\resource.h" />
     <ClInclude Include="..\src\StdAfx.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\IniFile.cpp" />
     <ClCompile Include="..\src\install.cpp" />
     <ClCompile Include="..\src\log.cpp" />
     <ClCompile Include="..\src\StdAfx.cpp" />
@@ -56,6 +68,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+    <TargetName>$(ProjectName)_test</TargetName>
+  </PropertyGroup>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(ProjectDir)cfg\dejainsight.props" />
     <Import Project="$(ProjectDir)cfg\installer.props" />

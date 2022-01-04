@@ -38,12 +38,9 @@ const std::string CONSOLE_COLOR_RED = "\u001b[31m";
 const std::string CONSOLE_COLOR_GREEN = "\u001b[32m";
 const std::string CONSOLE_COLOR_YELLOW = "\u001b[33m";
 
-void __cdecl ConsoleOut( std::string color, const char *format, ...);
+
 void __cdecl SystemDebugOutput(const wchar_t *channel, const char *format, ...);
-void __cdecl ConsoleLog(const char *format, ...);
-void __cdecl ConsoleNet(const char *format, ...);
-void __cdecl ConsoleError(const char *format, ...);
-void __cdecl ConsoleInstaller(const char *format, ...);
+
 # define COUTCMD( ... ) { ConsoleLog(  __VA_ARGS__ );  }	
 # define LOG_INSTALL( ... ) { ConsoleInstaller(  __VA_ARGS__ );  }
 # define COUTNET( ... ) { ConsoleNet(  __VA_ARGS__ );  }
@@ -65,19 +62,13 @@ void __cdecl ConsoleInstaller(const char *format, ...);
 	# define LOG_ERROR DEJA_ERROR
 	# define LOG_PROFILE( name )	DEJA_CONTEXT( name );
 #else
-	/*#ifndef FINAL
-		# define LOG_PROFILE( channel, ... )
-		# define LOG_TRACE( channel, ... ) { SystemDebugOutput( TEXT("trace: "),  __VA_ARGS__ );  }
-		# define LOG_INFO( channel, ... ) {  SystemDebugOutput( TEXT("info: "),  __VA_ARGS__ );  }
-		# define LOG_WARNING( channel, ... ){  SystemDebugOutput( TEXT("warning: "),  __VA_ARGS__ );  }
-		# define LOG_ERROR( channel, ... ) {  SystemDebugOutput( TEXT("error: "),  __VA_ARGS__ ); }
-	#else*/
+
 		# define LOG_PROFILE( channel, ... ) 
 		# define LOG_TRACE( channel, ... )
 		# define LOG_INFO( channel, ... )
 		# define LOG_WARNING( channel, ... )
 		# define LOG_ERROR( channel, ... ) 
-	//#endif
+
 #endif
 
 
