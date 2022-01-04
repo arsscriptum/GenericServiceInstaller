@@ -17,7 +17,6 @@
   <PropertyGroup Label="GeneralConfig">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
     <OutDir>$(ProjectOutputDirectory)\</OutDir>
     <IntDir>$(ProjectObjectDirectory)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
@@ -40,10 +39,24 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AssemblerListingLocation>$(IntDir)assembler</AssemblerListingLocation>
       <BrowseInformation>true</BrowseInformation>
-     <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <ObjectFileName>$(IntDir)ObjectFileName.obj</ObjectFileName>
-      <ProgramDataBaseFileName>$(IntDir)ProgramDataBase.pdb</ProgramDataBaseFileName>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    
     </ClCompile>
+    <Midl>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <TypeLibraryName>$(IntDir)install.tlb</TypeLibraryName>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <TargetEnvironment>Win32</TargetEnvironment>
+    </Midl>
+    <ResourceCompile>
+      <Culture>0x0804</Culture>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Bscmake>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <OutputFile>$(IntDir)install.bsc</OutputFile>
+    </Bscmake>    
     <Link>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -54,17 +67,18 @@
   </ItemDefinitionGroup>
 <!--
   ####################################################################################################
-  # Template
+  # Test
   #
-  # Template Configuration
+  # Test Configuration
   ####################################################################################################
 -->
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Template'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Test'">
     <ClCompile>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>LOG_ENABLED;INSTALLER_TEST;TEST_MODE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+      <TargetName>installer_testonly</TargetName>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -79,10 +93,11 @@
 -->
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>INSTALLER_RELEASE;RELEASE_MODE;DEJA_DISABLED;LOG_DISABLED;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
+
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -93,6 +108,7 @@
     <Message Text="    *** installer props ***   " />
     <Message Text="ProjectOutputDirectory: $(ProjectOutputDirectory)." />
     <Message Text="ProjectObjectDirectory: $(ProjectObjectDirectory)." />
+    <Message Text="Configuration: $(Configuration)." />
     <Message Text="================================================================================================" />
   </Target>
 </Project>

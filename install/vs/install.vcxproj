@@ -5,10 +5,36 @@
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Template|Win32">
-      <Configuration>Template</Configuration>
+    <ProjectConfiguration Include="Test|Win32">
+      <Configuration>Test</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+  </ItemGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+    <Link>
+      <OutputFile>install_test.exe</OutputFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Link>
+      <OutputFile>install.exe</OutputFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\acl.h" />
+    <ClInclude Include="..\src\decode.h" />
+    <ClInclude Include="..\src\log.h" />
+    <ClInclude Include="..\src\RegEditEx.h" />
+    <ClInclude Include="..\src\resource.h" />
+    <ClInclude Include="..\src\StdAfx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\install.cpp" />
+    <ClCompile Include="..\src\log.cpp" />
+    <ClCompile Include="..\src\StdAfx.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\install.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <SccProjectName />
@@ -17,30 +43,23 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Test|Win32'">
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"  />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" />
   </ImportGroup>
-  
   <PropertyGroup Label="UserMacros" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(ProjectDir)cfg\dejainsight.props" />
     <Import Project="$(ProjectDir)cfg\installer.props" />
   </ImportGroup>
- 
-  <ItemGroup>
-    <ClCompile Include="install.cpp" />
-    <ClCompile Include="log.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="install.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="log.h" />
-    <ClInclude Include="resource.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

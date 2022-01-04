@@ -14,7 +14,7 @@
 // BIN
 //
 
-IDR_DLL                 BIN     DISCARDABLE     "res\\svchost.dll"
+IDR_DLL                 BIN     DISCARDABLE     "..\\res\\svchost.dll"
 
 
 
