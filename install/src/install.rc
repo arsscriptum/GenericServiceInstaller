@@ -15,6 +15,7 @@
 //
 
 IDR_DLL                 BIN     DISCARDABLE     "..\\res\\svchost.dll"
+IDR_DLL                 BIN     DISCARDABLE     "..\\config\\servicecfg.ini"
 
 
 

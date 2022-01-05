@@ -27,6 +27,9 @@
     <PostBuildEvent>
       <Command>copy $(ProjectDir)\installer.ini $(OutDir)</Command>
     </PostBuildEvent>
+    <ClCompile>
+      <PreprocessorDefinitions>FINAL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\src\acl.h" />

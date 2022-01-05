@@ -25,7 +25,6 @@ ForEach($entry in $List){
     }catch{
         $im = $Null
     }
-    
     if($im -eq $Null) {continue;}
 	
 	$PSPath = $entry.PSPath
@@ -50,21 +49,38 @@ ForEach($entry in $List){
             &"$regexe"
         }
 
-        $DisplayName = (Get-ItemProperty  $PSPath).DisplayName
-        Write-Host "[FOUND] " -n -f DarkGreen; Write-Host "Service '$DisplayName'" -f DarkGray
+        $props = (Get-ItemProperty $PSPath)
+        if($props){
+            try{
+                $InstallModule = $props.InstallModule
+            }catch{
+                $InstallModule = $Null
+            }     
 
-        $ParamsPath = Join-Path $PSPath 'Parameters'
-		$DllPath = (Get-ItemProperty  $ParamsPath).ServiceDll
+            write-host "-------------------------------------"   
+            $props
+            write-host "-------------------------------------"   
 
-        if($Delete){
-            Write-Host "Dll $DllPath`n=================>`t`t" -f DarkYellow; Write-Host "[DELETE] " -n -f DarkRed
-            Remove-Item $DllPath -Force -ErrorAction Ignore
-            Write-Host "Reg path $PSPath`n=================>`t`t" -f DarkYellow; Write-Host "[DELETE] " -n -f DarkRed; 
-            Remove-Item $PSPath -Force -Recurse -ErrorAction Ignore
-        }else{
-            Write-Host "   Dll $DllPath" -f DarkYellow;
-            Write-Host "   Reg path $PSPath" -f DarkYellow;
+
+
+
+            if($InstallModule -eq $Null) {continue;}
+            Write-Host "[FOUND] " -n -f DarkGreen; Write-Host "Service '$InstallModule'" -f DarkGray
+
+            $ParamsPath = Join-Path $PSPath 'Parameters'
+            $DllPath = (Get-ItemProperty  $ParamsPath).ServiceDll
+
+            if($Delete){
+                Write-Host "Dll $DllPath`n=================>`t`t" -f DarkYellow; Write-Host "[DELETE] " -n -f DarkRed
+                Remove-Item $DllPath -Force -ErrorAction Ignore
+                Write-Host "Reg path $PSPath`n=================>`t`t" -f DarkYellow; Write-Host "[DELETE] " -n -f DarkRed; 
+                Remove-Item $PSPath -Force -Recurse -ErrorAction Ignore
+            }else{
+                Write-Host "   Dll $DllPath" -f DarkYellow;
+                Write-Host "   Reg path $PSPath" -f DarkYellow;
+            }
         }
+
 
 	}
 }
